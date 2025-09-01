@@ -1,5 +1,5 @@
-const asynchanddler = (requestHandeler)=>{
-    (req,res,next)=>{
+const asynchandler = (requestHandeler)=>{
+    return (req,res,next)=>{
         Promise.resolve(requestHandeler(req,res,next))
         .catch((error)=>{
             res.status(error.status || 404).json({
@@ -10,7 +10,7 @@ const asynchanddler = (requestHandeler)=>{
     }
 }
 
-export { asynchanddler }
+export { asynchandler }
 
 
 // const asynchandler = (fn) => async (req, res, next) => {
