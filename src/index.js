@@ -3,7 +3,7 @@ import connectDB from "./db/index.js";
 import app from "./app.js";   // 👈 use the app with routes
 
 dotenv.config({
-  path: "./env"
+  path: "./.env"
 });
 
 // connect database
