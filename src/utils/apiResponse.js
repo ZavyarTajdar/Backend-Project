@@ -9,3 +9,5 @@ class apiResponse {
         this.success = statuscode >= 200 && statuscode < 300;
     }
 }
+
+export { apiResponse };
