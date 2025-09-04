@@ -32,9 +32,14 @@ const registerUser = asynchandler(async (req, res) => {
         throw new apiError(409, "User already exists");
     }
     // Step 4 and 5
+    
     const avatarlocalPath = req.files?.avatar[0]?.path
-    const coverlocalPath = req.files?.cover[0]?.path
+    // const coverlocalPath = req.files?.cover[0]?.path
 
+    let coverlocalPath; 
+    if (req.files && Array.isArray(req.files.cover) && req.files.cover.length > 0) {
+        coverlocalPath = req.files.cover[0].path;
+    }
     if (!avatarlocalPath) {
         throw new apiError(400, "Avatar image is required");
     }
