@@ -3,7 +3,7 @@ import { apiError } from '../utils/apierror.js';
 import {User} from '../models/user.models.js';
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { apiResponse } from '../utils/apiResponse.js';
-
+import jwt from 'jsonwebtoken';
 
 const generateAcessAndRefreshToken = async(userId)=>{
     try {
@@ -158,7 +158,47 @@ const logoutUser = asynchandler(async(req, res)=>{
     .clearCookie("refreshToken", option)
     .json(new apiResponse(201, {}, "User Logged Out"))
 })
+
+const refreshAccessToken = asynchandler(async(req, res)=>{
+    const incommingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+
+    if (!incommingRefreshToken) {
+        throw new apiError(401, "Unauthorized request - No refresh token");
+    }
+
+    try {
+        const decoded = jwt.verify(incommingRefreshToken, process.env.REFRESH_TOKEN_SECRECT)
+    
+        const user = await User.findById(decoded.userId)
+    
+        if (!user) {
+            throw new apiError(401, "Unauthorized request - No user");
+        }
+    
+        if (incommingRefreshToken !== user?.refreshToken) {
+            throw new apiError(401, "Unauthorized request - Token mismatch");
+        }
+    
+        const {accessToken, newRefreshToken} = await generateAcessAndRefreshToken(user._id)
+        const option = {
+            httpOnly : true,
+            secure : true
+        }
+    
+        return res
+        .status(200)
+        .cookie("accessToken", accessToken, option)
+        .cookie("refreshToken", newRefreshToken, option)
+        .json(
+            new apiResponse(200, {accessToken, newRefreshToken},
+            "Access token Regenerated successfully")
+        )
+    } catch (error) {
+        throw new apiError(401, error?.message || "Something Went Wrong While Refreshing Access Token");
+    }
+})
 export { 
+    refreshAccessToken,
     logoutUser, 
     loginUser, 
     registerUser 
