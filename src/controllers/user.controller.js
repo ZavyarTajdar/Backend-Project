@@ -8,13 +8,13 @@ import { apiResponse } from '../utils/apiResponse.js';
 const generateAcessAndRefreshToken = async(userId)=>{
     try {
         const user = await User.findById(userId)
-        const AccessToken = user.generateAccessToken()
-        const RefreshToken = user.generateRefreshToken()
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
 
-        user.refreshToken = RefreshToken
+        user.refreshToken = refreshToken
         await user.save({validateBeforeSave : false})
 
-        return {AccessToken , RefreshToken}
+        return {accessToken , refreshToken}
     } catch (error) {
         throw new apiError(504, "Something went wrong while generating Acess And Refresh Token")
     }
@@ -101,11 +101,11 @@ const loginUser = asynchandler(async (req, res) => {
     // Step 1
     const {email, username, password} = req.body
 
-    if (!username || !email){
+    if (!username && !email){
         throw new apiError(404, "Give Atleast One Email or Username");
     }
 
-    const  user = await User.findOne({$or : [{email}, {username}]})
+    const  user = await User.findOne({$or : [{email}, {username}]}).select("+password")
     
     if (!user) {
         throw new apiError(404, "User Does Not Exist")
@@ -117,11 +117,7 @@ const loginUser = asynchandler(async (req, res) => {
         throw new apiError(404, "Password is required");
     }
 
-    const {AccessToken, RefreshToken} = await generateAcessAndRefreshToken(user._id)
-    if(!AccessToken || !RefreshToken){
-        throw new apiError(504, "Something went wrong while generating tokens");
-    }
-
+    const {accessToken, refreshToken} = await generateAcessAndRefreshToken(user._id)
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken") 
 
     const option = {
@@ -131,10 +127,10 @@ const loginUser = asynchandler(async (req, res) => {
 
     return res
     .status(200)
-    .cookie("AccessToken", AccessToken, option)
-    .cookie("RefreshToken", RefreshToken, option)
+    .cookie("accessToken", accessToken, option)
+    .cookie("refreshToken", refreshToken, option)
     .json(
-        new apiResponse(200, {user : loggedInUser, AccessToken, RefreshToken}, "User logged in successfully"),
+        new apiResponse(200, {user : loggedInUser, accessToken, refreshToken}, "User logged in successfully"),
     )
 })
 
@@ -142,8 +138,8 @@ const logoutUser = asynchandler(async(req, res)=>{
     await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set: { 
-                RefreshToken: undefined
+            $unset: { 
+                refreshToken: 1
             }
         },
         {
@@ -158,8 +154,8 @@ const logoutUser = asynchandler(async(req, res)=>{
 
     return res
     .status(201)
-    .clearCookie("AccessToken", option)
-    .clearCookie("RefreshToken", option)
+    .clearCookie("accessToken", option)
+    .clearCookie("refreshToken", option)
     .json(new apiResponse(201, {}, "User Logged Out"))
 })
 export { 
