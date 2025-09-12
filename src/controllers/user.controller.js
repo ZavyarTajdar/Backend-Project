@@ -3,7 +3,7 @@ import { apiError } from '../utils/apierror.js';
 import { User } from '../models/user.models.js';
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { apiResponse } from '../utils/apiResponse.js';
-import { deleteOldImage } from '../utils/deleteOldAvatar.js';
+import { deleteOldImage } from '../utils/deleteOldImage.js';
 import jwt from 'jsonwebtoken';
 
 const generateAcessAndRefreshToken = async (userId) => {
@@ -250,13 +250,7 @@ const updateAccountDetails = asynchandler(async (req, res) => {
 })
 
 const updateUserAvatar = asynchandler(async (req, res) => {
-    // First we delete old avatar if exists
-    const existingUser = await User.findById(req.user._id);
 
-    if (existingUser?.avatar) {
-        await deleteOldImage(existingUser.avatar);
-    }
-    // Then we upload new avatar
     const avatarLocalPath = req.file?.path
     if (!avatarLocalPath) {
         throw new apiError(400, "Avatar File is Missing");
@@ -266,6 +260,12 @@ const updateUserAvatar = asynchandler(async (req, res) => {
 
     if (!Avatar) {
         throw new apiError(400, "Avatar Uploading Failed");
+    }
+
+    const existingUser = await User.findById(req.user._id);
+
+    if (existingUser?.avatar) {
+        await deleteOldImage(existingUser.avatar);
     }
 
     const user = await User.findByIdAndUpdate(
@@ -285,13 +285,6 @@ const updateUserAvatar = asynchandler(async (req, res) => {
 
 const updateUserCover = asynchandler(async (req, res) => {
 
-    // First we delete old cover if exists
-    const existingUser = await User.findById(req.user._id);
-
-    if (existingUser?.cover) {
-        await deleteOldImage(existingUser.cover);
-    }
-    // Then we upload new cover
     const coverLocalPath = req.file?.path
     if (!coverLocalPath) {
         throw new apiError(400, "Cover File is Missing");
@@ -302,7 +295,12 @@ const updateUserCover = asynchandler(async (req, res) => {
     if (!cover) {
         throw new apiError(400, "Cover Uploading Failed");
     }
-    
+
+    const existingUser = await User.findById(req.user._id);
+
+    if (existingUser?.cover) {
+        await deleteOldImage(existingUser.cover);
+    }
 
     const user = await User.findByIdAndUpdate(
         req.user._id,
