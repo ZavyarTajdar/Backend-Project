@@ -329,7 +329,7 @@ const getUserChannelProfie = asynchandler(async (req, res) => {
     if (!username?.trim()) {
         throw new apiError(400, "Username Not Found") 
     }
-
+ 
     const channel = await User.aggregate([
         {
             $match: {
@@ -360,7 +360,7 @@ const getUserChannelProfie = asynchandler(async (req, res) => {
                 channelsSubscribedToCount: {
                     $size : "$subscribedTo"
                 },
-                isSubsribed: {
+                isSubscribed: {
                     $cond : {
                         if : {$in: [req.user?._id, "$subscribers.subscriber"]},
                         then: true,
