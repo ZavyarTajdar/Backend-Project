@@ -322,6 +322,77 @@ const deleteUserAccount = asynchandler(async (req, res) => {
         .status(200)
         .json(new apiResponse(200, {}, "User Deleted Successfully"))
 })
+
+const getUserChannelProfie = asynchandler(async (req, res) => {
+    const {username} = req.params
+
+    if (!username?.trim()) {
+        throw new apiError(400, "Username Not Found") 
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size : "$subscribers"
+                },
+                channelsSubscribedToCount: {
+                    $size : "$subscribedTo"
+                },
+                isSubsribed: {
+                    $cond : {
+                        if : {$in: [req.user?._id, "$subscribers.subscriber"]},
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project:{
+                fullname: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubsribed: 1,
+                avatar: 1,
+                cover: 1,
+                email: 1
+            }
+        }
+    ])
+
+    if (!channel?.length) {
+        throw new apiError(401, "Channel Does Not Exists")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, channel[0], "User Channel Fetched Successfully")
+    )
+})
 export {
     registerUser,
     loginUser,
@@ -332,5 +403,6 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCover,
+    getUserChannelProfie,
     deleteUserAccount
 };
