@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { apiResponse } from '../utils/apiResponse.js';
 import { deleteOldImage } from '../utils/deleteOldImage.js';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
 const generateAcessAndRefreshToken = async (userId) => {
     try {
@@ -279,8 +280,8 @@ const updateUserAvatar = asynchandler(async (req, res) => {
     ).select("-password")
 
     return res
-    .status(200)
-    .json(new apiResponse(200, user, "Avatar Updated Successfully"))
+        .status(200)
+        .json(new apiResponse(200, user, "Avatar Updated Successfully"))
 })
 
 const updateUserCover = asynchandler(async (req, res) => {
@@ -323,13 +324,13 @@ const deleteUserAccount = asynchandler(async (req, res) => {
         .json(new apiResponse(200, {}, "User Deleted Successfully"))
 })
 
-const getUserChannelProfie = asynchandler(async (req, res) => {
-    const {username} = req.params
+const getUserChannelProfile = asynchandler(async (req, res) => {
+    const { username } = req.params
 
     if (!username?.trim()) {
-        throw new apiError(400, "Username Not Found") 
+        throw new apiError(400, "Username Not Found")
     }
- 
+
     const channel = await User.aggregate([
         {
             $match: {
@@ -338,10 +339,10 @@ const getUserChannelProfie = asynchandler(async (req, res) => {
         },
         {
             $lookup: {
-                from: "subscriptions",
-                localField: "_id",
-                foreignField: "channel",
-                as: "subscribers"
+                from: "subscriptions",  // jis collection se data lana hai
+                localField: "_id", // current collection ka field
+                foreignField: "channel", // dusri collection ka field
+                as: "subscribers"  // result array kis naam se save hoga
             }
         },
         {
@@ -355,14 +356,14 @@ const getUserChannelProfie = asynchandler(async (req, res) => {
         {
             $addFields: {
                 subscribersCount: {
-                    $size : "$subscribers"
+                    $size: "$subscribers"
                 },
                 channelsSubscribedToCount: {
-                    $size : "$subscribedTo"
+                    $size: "$subscribedTo"
                 },
                 isSubscribed: {
-                    $cond : {
-                        if : {$in: [req.user?._id, "$subscribers.subscriber"]},
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
                         then: true,
                         else: false
                     }
@@ -370,7 +371,7 @@ const getUserChannelProfie = asynchandler(async (req, res) => {
             }
         },
         {
-            $project:{
+            $project: {
                 fullname: 1,
                 username: 1,
                 subscribersCount: 1,
@@ -388,11 +389,70 @@ const getUserChannelProfie = asynchandler(async (req, res) => {
     }
 
     return res
+        .status(200)
+        .json(
+            new apiResponse(200, channel[0], "User Channel Fetched Successfully")
+        )
+})
+
+const getWatchHistory = asynchandler(async (req, res) => {
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "creator",
+                            foreignField: "_id",
+                            as: "creator",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            creator : {
+                                $first : "$creator"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    if (!user?.length) {
+        throw new apiError(501, "Watch History Failed to Connect")
+    }
+
+    return res
     .status(200)
     .json(
-        new apiResponse(200, channel[0], "User Channel Fetched Successfully")
+        new apiResponse(
+            200, 
+            user[0].watchHistory, 
+            "Watch History Fetched Successfully" 
+        )
     )
 })
+
 export {
     registerUser,
     loginUser,
@@ -403,6 +463,7 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCover,
-    getUserChannelProfie,
-    deleteUserAccount
+    getUserChannelProfile,
+    deleteUserAccount,
+    getWatchHistory
 };
