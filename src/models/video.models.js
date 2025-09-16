@@ -1,50 +1,56 @@
 import mongoose from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 const VideoSchema = new mongoose.Schema({
-    videoFile:{
+    videoFile: {
         type: String, // Cloudinary url
         required: true
     },
-    thumbnail:{
+    thumbnail: {
         type: String, // Cloudinary url
         required: true
     },
-    title:{
+    title: {
         type: String,
         required: true,
         trim: true
     },
-    description:{
+    description: {
         type: String,
         required: true,
         trim: true
     },
-    duration:{
+    duration: {
         type: Number,  // cloudinary duration
         required: true
     },
-    views:{
+    views: {
         type: Number,
         default: 0
     },
-    likes:{
-        type: Number,
-        default: 0
-    },
-    isPublished:{
+    likes: [
+        { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    ],
+    isPublished: {
         type: Boolean,
         default: true
     },
-    creator:{
+    creator: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true
     },
-    category:{
+    comments: [
+        {
+            comment: { type: String, required: true },
+            user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+            createdAt: { type: Date, default: Date.now }
+        }
+    ],
+    category: {
         type: String,
         required: true
     }
-},{timestamps: true})
+}, { timestamps: true })
 
 VideoSchema.plugin(mongooseAggregatePaginate);
 
