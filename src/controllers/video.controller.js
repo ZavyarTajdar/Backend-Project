@@ -1,6 +1,8 @@
 import { asynchandler } from '../utils/asynchandler.js';
 import { apiError } from '../utils/apierror.js';
 import { Video } from '../models/video.models.js'
+import { Comment } from '../models/comment.models.js'
+import { Like } from '../models/like.models.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { apiResponse } from '../utils/apiResponse.js';
 
@@ -195,140 +197,140 @@ const addView = asynchandler(async (req, res) => {
 })
 
 const likeVideo = asynchandler(async (req, res) => {
-    const { videoId } = req.params
+    const { videoId } = req.params;
 
     if (!videoId) {
-        throw new apiError(400, "Could Not found ID!")
+        throw new apiError(400, "Video ID is required");
     }
 
-    const video = await Video.findById(videoId)
-
+    const video = await Video.findById(videoId);
     if (!video) {
-        throw new apiError(404, "Failed To Fetch VideoID")
+        throw new apiError(404, "Video not found");
     }
-    
+
     const userId = req.user._id;
 
-    if (video.likes.includes(userId)) {
-        // If already liked, remove the like (toggle)
-        video.likes.pull(userId)
-        await video.save()
-        // return response
+    // Check if already liked
+    const existingLike = await Like.findOne({
+        video: videoId,
+        likedBy: userId
+    });
+
+    if (existingLike) {
+        // Unlike (remove like)
+        await existingLike.deleteOne();
+
+        const likesCount = await Like.countDocuments({ video: videoId });
+
         return res.status(200).json({
             success: true,
             message: "Video unliked",
-            likesCount: video.likes.length
-        });
-    }else{
-        video.likes.push(userId)
-        await video.save()
-
-        return res
-        .status(200)
-        .json({
-            success: true,
-            message: "Video liked",
-            likesCount: video.likes.length
+            likesCount
         });
     }
-}) 
+
+    // Add new like
+    await Like.create({
+        video: videoId,
+        likedBy: userId
+    });
+
+    const likesCount = await Like.countDocuments({ video: videoId });
+
+    return res.status(200).json({
+        success: true,
+        message: "Video liked",
+        likesCount
+    });
+});
+ 
 
 const addComment = asynchandler(async (req, res) => {
-    const { videoId } = req.params
-    const { comment } = req.body;
+    const { videoId } = req.params;
+    const { content } = req.body;
 
     if (!videoId) {
-        throw new apiError(400, "Failed To Find ID")
-    }
-
-    const video = await Video.findById(videoId)
-
-    if (!video) {
-        throw new apiError(404, "Did not Find Such Video")
-    }
-
-    video.comments.push({
-        comment,
-        user: req.user._id
-    })
-    await video.save()
-
-    return res
-    .status(200)
-    .json(
-        new apiResponse(200, video.comments, "Comment Posted Successfully")
-    )
-}) 
-
-const editComment = asynchandler(async (req, res) => {
-    const { videoId, commentId } = req.params
-    const { comment } = req.body;
-
-    if (!videoId || !commentId) {
-        throw new apiError(400, "Video ID and Comment ID are required");
+        throw new apiError(400, "Video ID is required");
     }
 
     const video = await Video.findById(videoId);
+    if (!video) {
+        throw new apiError(404, "Video not found");
+    }
 
-    if (!video) throw new apiError(404, "Video not found");
+    if (!content) {
+        throw new apiError(400, "Comment content is required");
+    }
+
+    const comment = await Comment.create({
+        content,
+        video: videoId,
+        owner: req.user._id
+    });
+
+    return res.status(200).json(
+        new apiResponse(200, comment, "Comment posted successfully")
+    );
+});
+
+
+const editComment = asynchandler(async (req, res) => {
+    const { commentId } = req.params;
+    const { content } = req.body;
+
+    if (!commentId) {
+        throw new apiError(400, "Comment ID is required");
+    }
+
+    const comment = await Comment.findById(commentId);
 
     if (!comment) {
-        throw new apiError(400, "New comment text is required");
-    }
-    const existedcomment = video.comments.id(commentId)
-
-    if (!existedcomment) {
         throw new apiError(404, "Comment not found");
     }
 
-    if (!existedcomment.user.equals(req.user._id)) {
+    if (!comment.owner.equals(req.user._id)) {
         throw new apiError(403, "You can only edit your own comment");
     }
 
-    // Time limit check (10 minutes = 600,000 ms)
+    // 10 minutes time limit
     const timeLimit = 10 * 60 * 1000;
-
-    const now = Date.now();
-    if (now - existedcomment.createdAt.getTime() > timeLimit) {
+    if (Date.now() - comment.createdAt.getTime() > timeLimit) {
         throw new apiError(403, "You can only edit your comment within 10 minutes");
     }
 
-    existedcomment.comment = comment;
-    await video.save();
+    comment.content = content;
+    await comment.save();
 
     return res.status(200).json(
-        new apiResponse(200, existedcomment, "Comment updated successfully")
+        new apiResponse(200, comment, "Comment updated successfully")
     );
-})
+});
+ 
 
 const deleteComment = asynchandler(async (req, res) => {
-    const { videoId, commentId } = req.params
+    const { commentId } = req.params;
 
-    if (!videoId || !commentId) {
-        throw new apiError(400, "Video ID and Comment ID are required");
+    if (!commentId) {
+        throw new apiError(400, "Comment ID is required");
     }
 
-    const video = await Video.findById(videoId);
-
-    if (!video) throw new apiError(404, "Video not found");
-
-    const comment = video.comments.id(commentId)
+    const comment = await Comment.findById(commentId);
 
     if (!comment) {
         throw new apiError(404, "Comment not found");
     }
 
-    if (!comment?.user?.equals(req.user._id)) {
+    if (!comment.owner.equals(req.user._id)) {
         throw new apiError(403, "You can only delete your own comment");
     }
 
-    comment.remove(); // remove the subdocument
-    await video.save();
+    await comment.deleteOne();
 
     return res.status(200).json(
-        new apiResponse(200, video.comments, "Comment deleted successfully")
+        new apiResponse(200, null, "Comment deleted successfully")
     );
-}) 
+});
+
 
 const getOwnChannelVideos = asynchandler(async (req, res) => {
     const userId = req.user._id; // (creator)
