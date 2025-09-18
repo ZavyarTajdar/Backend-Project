@@ -1,8 +1,6 @@
 import { asynchandler } from '../utils/asynchandler.js';
 import { apiError } from '../utils/apierror.js';
 import { Video } from '../models/video.models.js'
-import { Comment } from '../models/comment.models.js'
-import { Like } from '../models/like.models.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { apiResponse } from '../utils/apiResponse.js';
 
@@ -78,6 +76,18 @@ const getVideoById = asynchandler(async (req, res) => {
         new apiResponse(200, video, "Video Fetched Successfully!")
     )
 })
+
+const getAllVideos = asynchandler(async (req, res) => {
+    const videos = await Video.find({ isPublished: true })
+        .populate("creator", "username email")
+        .sort({ createdAt: -1 });
+
+    return res
+        .status(200)
+        .json(
+            new apiResponse(200, videos, "All Published Videos Fetched Successfully")
+        );
+});
 
 const updateVideo = asynchandler(async (req, res) => {
     const { videoId } = req.params;
@@ -216,9 +226,5 @@ export {
     deleteVideo,
     togglePublishStatus,
     addView,
-    likeVideo,
-    addComment,
-    editComment,
-    deleteComment,
     getOwnChannelVideos
 }

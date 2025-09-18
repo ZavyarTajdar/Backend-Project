@@ -1,9 +1,11 @@
 import { asynchandler } from '../utils/asynchandler.js';
 import { apiError } from '../utils/apierror.js';
-import { User } from '../models/user.models.js';
 import { Video } from '../models/video.models.js';
+import { Comment } from '../models/comment.models.js';
 import { apiResponse } from '../utils/apiResponse.js';
+import { Like } from '../models/like.models.js';
 import mongoose from 'mongoose';
+import { Tweet } from '../models/tweet.models.js';
 
 
 const toggleVideoLike = asynchandler(async (req, res) => {
@@ -30,10 +32,10 @@ const toggleVideoLike = asynchandler(async (req, res) => {
         // Unlike (remove like)
         await existingLike.deleteOne();
 
-        const likesCount = await Like.countDocuments({ video: videoId });
+        const CountLike = await Like.countDocuments({ video: videoId });
 
         return res.status(200).json(
-            new apiResponse(200, { likesCount }, "Video unliked")
+            new apiResponse(200, { likesCount: CountLike }, "Video unliked")
         );
     }
 
@@ -50,21 +52,143 @@ const toggleVideoLike = asynchandler(async (req, res) => {
     );
 });
 
+const toggleCommentLike = asynchandler(async (req, res) => {
+    const { commentId } = req.params
 
-const toggleCommentLike = asyncHandler(async (req, res) => {
-    const {commentId} = req.params
-    //TODO: toggle like on comment
+    if (!commentId) {
+        throw new apiError(400, "Comment ID is required TCL");
+    }
+
+    const comment = await Comment.findById(commentId)
+
+    if (!comment) {
+        throw new apiError(400, "Comment Not Found TCL");
+    }
+
+    const user = req.user._id
+    if (!user) {
+        throw new apiError(400, "User Not Found TCL");
+    }
+
+    const existingLike = await Like.findOne({
+        comment: commentId,
+        likedBy: user
+    });
+
+    if (existingLike) {
+        await existingLike.deleteOne()
+
+        const CountLike = await Like.countDocuments({ comment: commentId })
+
+        return res
+            .status(200)
+            .json(
+                new apiResponse(200, { likesCount: CountLike }, "Comment Unlike Successfully")
+            )
+    }
+
+    await Like.create({
+        comment: commentId,
+        likedBy: user
+    });
+
+    const CountLike = await Like.countDocuments({ comment: commentId })
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, { likesCount: CountLike }, "Comment Like Successfully")
+    )
 
 })
 
-const toggleTweetLike = asyncHandler(async (req, res) => {
-    const {tweetId} = req.params
-    //TODO: toggle like on tweet
-}
-)
+const toggleTweetLike = asynchandler(async (req, res) => {
+    const { tweetId } = req.params
+    if (!tweetId) {
+        throw new apiError(400, "Tweet ID is required TTL");
+    }
 
-const getLikedVideos = asyncHandler(async (req, res) => {
-    //TODO: get all liked videos
+    const tweet = await Tweet.findById(tweetId)
+
+    if (!tweet) {
+        throw new apiError(400, "Tweet Not Found TTL");
+    }
+
+    const user = req.user._id
+    if (!user) {
+        throw new apiError(400, "User Not Found TTL");
+    }
+
+    const existingLike = await Like.findOne({
+        tweet: tweetId,
+        likedBy: user
+    });
+
+    if (existingLike) {
+        await existingLike.deleteOne()
+
+        const CountLike = await Like.countDocuments({ tweet: tweetId })
+
+        return res
+            .status(200)
+            .json(
+                new apiResponse(200, { likesCount: CountLike }, "Tweet Unlike Successfully")
+            )
+    }
+
+    await Like.create({
+        tweet: tweetId,
+        likedBy: user
+    });
+
+    const CountLike = await Like.countDocuments({ tweet: tweetId })
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, { likesCount: CountLike }, "Tweet Like Successfully")
+    )
+})
+
+const getLikedVideos = asynchandler(async (req, res) => {
+    const { videoId } = req.params
+
+    if (!videoId) {
+        throw new apiError(400, "Video ID is required GLV");
+    }
+
+    const video = await Video.findById(videoId)
+    if (!video) {
+        throw new apiError(404, "Video not found GLV");
+    }
+
+    const like = await Like.aggregate([
+        {
+            $match: { video: new mongoose.Types.ObjectId(videoId) }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "likedBy",
+                foreignField: "_id",
+                as: "userDetails"
+            }
+        },
+        {
+            $unwind: "$userDetails"
+        },
+        {
+            $project: {
+                username: "$userDetails.username",
+                fullname: "$userDetails.fullname",
+                avatar: "$userDetails.avatar"
+            }
+        }
+    ]);
+
+    return res
+        .status(200)
+        .json(
+            new apiResponse(200, { likes: like, likesCount: like.length }, "Liked users fetched successfully")
+        )
 })
 
 export {
