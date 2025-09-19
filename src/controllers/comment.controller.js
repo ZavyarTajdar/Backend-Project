@@ -2,15 +2,70 @@ import { asynchandler } from '../utils/asynchandler.js';
 import { apiError } from '../utils/apierror.js';
 import { User } from '../models/user.models.js';
 import { Video } from '../models/video.models.js';
+import { Comment } from '../models/comment.models.js';
 import { apiResponse } from '../utils/apiResponse.js';
 import mongoose from 'mongoose';
 
 
-const getVideoComments = asyncHandler(async (req, res) => {
-    //TODO: get all comments for a video
+const getVideoComments = asynchandler(async (req, res) => {
     const {videoId} = req.params
     const {page = 1, limit = 10} = req.query
 
+    if (!videoId) {
+        throw new apiError(400, "Video ID is required");
+    }
+
+    const video = await Video.findById(videoId)
+  
+    if (!video) {
+        throw new apiError(400, "Video not found");
+    }
+    const user = req.user._id
+
+    const comment = await Comment.aggregate([
+        {
+            $match:{
+                video : new mongoose.Types.ObjectId(videoId)
+            }
+        },
+        {
+            $lookup:{
+                from : "users",
+                localField : "owner",
+                foreignField : "_id",
+                as : "userDetails"
+            }
+        },
+        {
+            $unwind : "$userDetails"
+        },
+        {
+            $project : {
+                _id: 1,
+                content: 1,
+                createdAt: 1,
+                avatar : "$userDetails.avatar",
+                username : "$userDetails.username",
+            }
+        },
+        {
+            $sort:{
+                createdAt : -1
+            }
+        },
+        {
+            $skip: (page - 1) * parseInt(limit)
+        },
+        {
+            $limit: parseInt(limit)
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, comment, "Comments Fetched Successfully")
+    )
 })
 
 const addComment = asynchandler(async (req, res) => {

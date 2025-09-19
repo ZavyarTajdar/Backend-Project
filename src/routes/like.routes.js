@@ -5,17 +5,18 @@ import {
     toggleTweetLike,
     toggleVideoLike,
     getLikedVideos
-} from '../controllers/comment.controller.js'
+} from '../controllers/like.controller.js'
 
 const router = Router();
 router.use(verifyJWT)
 // Video likes
-router.route("/videos/:videoId/like").post(toggleVideoLike);
-router.route("/videos/:videoId/likes").get(getLikedVideos);
+router.route("/:videoId/like").post(toggleVideoLike);
+router.route("/:videoId/likes").get(getLikedVideos);
 
 // Comment likes
-router.route("/comments/:commentId/like").post(toggleCommentLike);
+router.route("/:commentId/like").post(toggleCommentLike);
 
 // Tweet likes
-router.route("/tweets/:tweetId/like").post(toggleTweetLike);
+router.route("/:tweetId/like").post(toggleTweetLike);
 
+export default router

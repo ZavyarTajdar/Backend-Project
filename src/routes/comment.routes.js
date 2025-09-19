@@ -12,6 +12,8 @@ router.use(verifyJWT)
 
 router.route("/:videoId/comments").post(addComment);
 
-router.route("/:videoId/comments/:commentId").put(updateComment);
+router.route("/:videoId/comments").get(getVideoComments);
 
-router.route("/:videoId/comments/:commentId").delete(deleteComment);
+router.route("/:videoId/comments").put(updateComment);
+
+router.route("/:videoId/comments").delete(deleteComment);

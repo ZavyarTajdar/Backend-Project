@@ -1,17 +1,122 @@
-const createTweet = asyncHandler(async (req, res) => {
-    //TODO: create tweet
+import { asynchandler } from '../utils/asynchandler.js';
+import { apiError } from '../utils/apierror.js';
+import { Tweet } from '../models/tweet.models.js';
+import { apiResponse } from '../utils/apiResponse.js';
+import mongoose from 'mongoose';
+
+const createTweet = asynchandler(async (req, res) => {
+    const { content } = req.body
+
+    if (!content) {
+        throw new apiError(400, "Content Is Required")
+    }
+
+    const tweet = await Tweet.create({
+        content,
+        owner : req.user._id
+    })
+
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, tweet, "Tweet Create Successfully")
+    )
 })
 
-const getUserTweets = asyncHandler(async (req, res) => {
-    // TODO: get user tweets
+const getUserTweets = asynchandler(async (req, res) => {
+    const userId = req.user._id
+
+    if (!userId) {
+        throw new apiError(400, "User ID Is Required")
+    }
+
+    const { page, limit} = req.query
+
+    const tweet = await Tweet.aggregate([
+        {
+            $match:{
+                owner: mongoose.Types.ObjectId(userId)
+            }
+        },
+        {
+            $lookup:{
+                from : "users",
+                localField : 'owner',
+                foreignField : "_id",
+                as : "userDetails"
+            }
+        },
+         { $unwind: "$userDetails" },
+        {
+            $project: {
+                _id: 1,
+                content: 1,
+                createdAt: 1,
+                "userDetails.username": 1,
+                "userDetails.avatar": 1
+            }
+        },
+        { $sort: { createdAt: -1 } },
+        { $skip: (page - 1) * parseInt(limit) },
+        { 
+            $limit: parseInt(limit) 
+        }
+    ]);
+
+    return res
+    .status(200)
+    .json(new apiResponse(200, tweet, "User tweets fetched successfully"));
+     
 })
 
-const updateTweet = asyncHandler(async (req, res) => {
-    //TODO: update tweet
+const updateTweet = asynchandler(async (req, res) => {
+    const { tweetId } = req.params
+    const { content } = req.body;
+
+    if (!tweetId) {
+        throw new apiError(400, "Tweet ID Is Required")
+    }
+
+    if (!content) {
+        throw new apiError(400, "Content is required to update tweet");
+    }
+
+    const tweet = await Tweet.findById(tweetId)
+    
+    if (!tweet) {
+        throw new apiError(400, "Tweet Not Found")
+    }
+
+    const updateTweet = await Tweet.findByIdAndUpdate(
+        tweetId,
+        {
+            content
+        },
+        {
+            new: true
+        }
+
+    )
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, updateTweet, "Tweet Updated Successfully")
+    )
 })
 
-const deleteTweet = asyncHandler(async (req, res) => {
-    //TODO: delete tweet
+const deleteTweet = asynchandler(async (req, res) => {
+    const { tweetId } = req.params
+
+    if (!tweetId) {
+        throw new apiError(400, "Tweet ID Is Required")
+    }
+
+    const deletedTweet = await Tweet.findByIdAndDelete(tweetId)
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, deletedTweet, "Tweet Deleted Successfully")
+    )
 })
 
 export {
