@@ -17,3 +17,5 @@ router.route("/:videoId/comments").get(getVideoComments);
 router.route("/:videoId/comments").put(updateComment);
 
 router.route("/:videoId/comments").delete(deleteComment);
+
+export default router;
