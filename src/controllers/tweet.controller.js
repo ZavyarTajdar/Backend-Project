@@ -6,16 +6,17 @@ import mongoose from 'mongoose';
 
 const createTweet = asynchandler(async (req, res) => {
     const { content } = req.body
-
+    
     if (!content) {
         throw new apiError(400, "Content Is Required")
     }
 
-    const tweet = await Tweet.create({
+    let tweet = await Tweet.create({
         content,
         owner : req.user._id
     })
 
+    tweet = await tweet.populate("owner", "username avatar");
     return res
     .status(200)
     .json(
@@ -30,7 +31,8 @@ const getUserTweets = asynchandler(async (req, res) => {
         throw new apiError(400, "User ID Is Required")
     }
 
-    const { page, limit} = req.query
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
 
     const tweet = await Tweet.aggregate([
         {
@@ -57,9 +59,9 @@ const getUserTweets = asynchandler(async (req, res) => {
             }
         },
         { $sort: { createdAt: -1 } },
-        { $skip: (page - 1) * parseInt(limit) },
+        { $skip: (page - 1) * limit },
         { 
-            $limit: parseInt(limit) 
+            $limit: limit 
         }
     ]);
 

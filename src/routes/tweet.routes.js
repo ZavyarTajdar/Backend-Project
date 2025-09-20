@@ -14,7 +14,7 @@ router.use(verifyJWT)
 router.route("/publish-tweet").post(createTweet)
 
 // Get all tweets of a specific user (by username)
-router.route("/:username/tweets").get(getUserTweets)
+router.route("/my/tweets").get(getUserTweets)
 
 // Update a tweet
 router.route("/:tweetId").put(updateTweet)
