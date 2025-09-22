@@ -171,7 +171,7 @@ const refreshAccessToken = asynchandler(async (req, res) => {
     try {
         const decoded = jwt.verify(incommingRefreshToken, process.env.REFRESH_TOKEN_SECRECT)
 
-        const user = await User.findById(decoded.userId)
+        const user = await User.findById(decoded?._id)
 
         if (!user) {
             throw new apiError(401, "Unauthorized request - No user");
@@ -201,24 +201,38 @@ const refreshAccessToken = asynchandler(async (req, res) => {
 })
 
 const ChangeCurrentUserPassword = asynchandler(async (req, res) => {
-    const { oldPassword, newPassword, confirmPassword } = req.body
+    const { oldPassword, newPassword, confirmPassword } = req.body;
 
-    const user = await User.findById(req.user._id)
-    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+    if (!oldPassword || !newPassword || !confirmPassword) {
+        throw new apiError(400, "All fields (oldPassword, newPassword, confirmPassword) are required");
+    }
+
+    if (newPassword !== confirmPassword) {
+        throw new apiError(400, "New password and confirm password do not match");
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        throw new apiError(404, "User not found");
+    }
+
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
     if (!isPasswordCorrect) {
-        throw new apiError(400, "Old Password is incorrect");
+        throw new apiError(400, "Old password is incorrect");
     }
 
-    user.password = newPassword
-    await user.save({ validateBeforeSave: false })
-    if (!(newPassword === confirmPassword)) {
-        throw new apiError(400, "New Password and Confirm Password do not match");
+    if (oldPassword === newPassword) {
+        throw new apiError(400, "New password cannot be the same as old password");
     }
+
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });
 
     return res
-        .status(200)
-        .json(new apiResponse(200, {}, "Password Changed Successfully"))
-})
+    .status(200)
+    .json(new apiResponse(200, {}, "Password changed successfully"));
+});
+
 
 const getCurrentUser = asynchandler(async (req, res) => {
     return res
@@ -227,28 +241,27 @@ const getCurrentUser = asynchandler(async (req, res) => {
 })
 
 const updateAccountDetails = asynchandler(async (req, res) => {
-    const { fullname, email, username } = await req.body
+    const { fullname, email, username } = req.body;
 
-    if (!fullname || !email || !username) {
-        throw new apiError(400, "Fullname and Email are both required");
+    if (!(fullname || email || username)) {
+        throw new apiError(400, "Fullname, email and username are required");
     }
 
-    const user = User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
         req.user?._id,
-        {
-            $set: {
-                fullname,
-                email,
-                username
-            }
-        },
+        { $set: { fullname, email, username } },
         { new: true }
-    ).select("-password")
+    ).select("-password");
+
+    if (!user) {
+        throw new apiError(404, "User not found");
+    }
 
     return res
         .status(200)
-        .json(new apiResponse(200, user, "User details updated successfully"))
-})
+        .json(new apiResponse(200, user, "User details updated successfully"));
+});
+
 
 const updateUserAvatar = asynchandler(async (req, res) => {
 

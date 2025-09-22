@@ -41,7 +41,7 @@ router.route("/login").post(loginUser)
 
 router.route("/logout").post(verifyJWT, logoutUser)
 
-router.route("/refreshToken").post(refreshAccessToken)
+router.route("/refreshToken/:username").post(refreshAccessToken)
 
 router.route("/Avatar")
   .patch(
@@ -63,7 +63,7 @@ router.route("/ChangePassword")
     ChangeCurrentUserPassword
   )
 
-router.route("/updateAccountDetails")
+router.route("/updateAccountDetails/:username")
   .patch(
     verifyJWT,
     updateAccountDetails
