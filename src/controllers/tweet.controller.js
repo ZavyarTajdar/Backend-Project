@@ -37,7 +37,7 @@ const getUserTweets = asynchandler(async (req, res) => {
     const tweet = await Tweet.aggregate([
         {
             $match:{
-                owner: mongoose.Types.ObjectId(userId)
+                owner: new mongoose.Types.ObjectId(userId)
             }
         },
         {
@@ -87,6 +87,11 @@ const updateTweet = asynchandler(async (req, res) => {
     
     if (!tweet) {
         throw new apiError(400, "Tweet Not Found")
+    }
+
+    const timeLimit = 10 * 60 * 1000;
+    if (Date.now() - tweet.createdAt.getTime() > timeLimit) {
+        throw new apiError(403, "You can only edit your tweet within 10 minutes");
     }
 
     const updateTweet = await Tweet.findByIdAndUpdate(
