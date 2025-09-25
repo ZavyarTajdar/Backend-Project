@@ -90,9 +90,17 @@ const addComment = asynchandler(async (req, res) => {
         video: videoId,
         owner: req.user._id
     });
+    video.comments.push(comment._id);
+    await video.save();
+
+    // Populate owner before sending response (optional)
+    const populatedComment = await comment.populate({
+        path: "owner",
+        select: "username avatar"
+    });
 
     return res.status(200).json(
-        new apiResponse(200, comment, "Comment posted successfully")
+        new apiResponse(200, populatedComment, "Comment posted successfully")
     );
 });
 

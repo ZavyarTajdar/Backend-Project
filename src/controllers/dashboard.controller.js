@@ -1,17 +1,17 @@
 import { asynchandler } from '../utils/asynchandler.js';
 import { apiError } from '../utils/apierror.js';
 import { User } from '../models/user.models.js'
-import { Comment } from '../models/comment.models.js'
-import { Like } from '../models/like.models.js'
-import { Playlist } from '../models/playlist.models.js'
-import { Subscription } from '../models/subscription.models.js'
 import { Video } from '../models/video.models.js'
+import { Subscription } from "../models/subscription.models.js";
 import { apiResponse } from '../utils/apiResponse.js';
-import mongoose from 'mongoose';
-import path from 'path';
 
 const getChannelStats = asynchandler(async (req, res) => {
-    const { userId } = req.params;
+    const userId = req.user._id;
+    const { channelId } = req.params;
+
+    if (!channelId) {
+        throw new apiError(400, "Channel Id is Required");
+    }
 
     if (!userId) {
         throw new apiError(400, "User Id is Required");
@@ -19,37 +19,50 @@ const getChannelStats = asynchandler(async (req, res) => {
 
     const user = await User.findById(userId)
         .select("username fullname email avatar cover")
-        .populate({
-            path: "videos",
-            select: "title views likes createdAt",
-        })
-        .populate({
-            path: "subscriptions",
-            select: "subscriber channel"
-        });
+        .setOptions({ strictPopulate: true }); // enable strict populate on this query
 
     if (!user) {
         throw new apiError(404, "User Does Not Exist");
     }
 
-    // Calculate totals
-    const totalVideos = user.videos.length;
-    const totalViews = user.videos.reduce((sum, video) => sum + (video.views || 0), 0);
-    const totalLikes = user.videos.reduce((sum, video) => sum + (video.likes || 0), 0);
-    const totalSubscribers = user.subscriptions.length;
+    const videos = await Video.find({ creator: userId })
+        .select("title views likes createdAt")
+        .populate({
+            path: "creator",
+            select: "username avatar",
+            options: { strictPopulate: true } // make sure 'creator' exists in Video schema
+        });
+
+    const subscriptions = await Subscription.find({ channel: channelId })
+        .select("subscriber channel")
+        .populate({
+            path: "subscriber",
+            select: "username avatar",
+            options: { strictPopulate: true }
+        });
+
+    // Totals
+    const totalVideos = videos.length;
+    const totalViews = videos.reduce((sum, v) => sum + (v.views || 0), 0);
+    const totalLikes = videos.reduce((sum, v) => sum + (v.likes || 0), 0);
+    const totalSubscribers = subscriptions.length;
 
     return res.status(200).json(
-        new apiResponse(200, "Channel Stats Fetched Successfully", {
-            user: user,
-            totalSubscribers,
-            totalVideos,
-            totalViews,
-            totalLikes
-        })
+        new apiResponse(
+            200,
+            {
+                subscriptions,
+                videos,
+                user,
+                totalSubscribers,
+                totalVideos,
+                totalViews,
+                totalLikes,
+            },
+            "Channel Stats Fetched Successfully"
+        )
     );
 });
-
-
 
 const getChannelVideos = asynchandler(async (req, res) => {
     const { userId } = req.params;
@@ -63,28 +76,28 @@ const getChannelVideos = asynchandler(async (req, res) => {
         throw new apiError(404, "User Not Found");
     }
 
-    const videos = await Video.find({ owner: userId })
+    const videos = await Video.find({ creator: userId })
         .populate({
-            path: "owner",
+            path: "creator",
             select: "username fullname avatar cover"
         })
         .populate({
             path: "comments",
-            select: "user text createdAt",
+            select: "owner content createdAt",
             populate: {
-                path: "user",
+                path: "owner",
                 select: "username avatar"
             }
         })
         .sort({ createdAt: -1 }); // latest videos first
-
+        
     return res.status(200).json(
-        new apiResponse(200, "Channel Videos Fetched Successfully", videos)
+        new apiResponse(200, videos, "Channel Videos Fetched Successfully")
     );
 });
 
 
 export {
-    getChannelStats, 
+    getChannelStats,
     getChannelVideos
 }

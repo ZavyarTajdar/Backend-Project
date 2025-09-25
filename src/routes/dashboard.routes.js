@@ -8,8 +8,8 @@ import {
 const router = Router();
 router.use(verifyJWT);
 
-router.get("/channel/:userId/stats", getChannelStats);
+router.get("/channel/stats/:channelId", getChannelStats);
 
-router.get("/channel/:userId/videos", getChannelVideos);
+router.get("/channel/videos/:userId", getChannelVideos);
 
 export default router;

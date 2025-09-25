@@ -9,6 +9,11 @@ const VideoSchema = new mongoose.Schema({
         type: String, // Cloudinary url
         required: true
     },
+    comments : [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Comment",
+        required: true
+    }],
     title: {
         type: String,
         required: true,
