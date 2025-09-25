@@ -1,28 +1,30 @@
 import { asynchandler } from '../utils/asynchandler.js';
 import { apiError } from '../utils/apierror.js';
+import { Channel } from '../models/channel.models.js';
 import { Subscription } from '../models/subscription.models.js'
 import { apiResponse } from '../utils/apiResponse.js';
 
 const toggleSubscription = asynchandler(async (req, res) => {
     const {channelId} = req.params
     const user = req.user._id
-
+    
     if (!channelId) {
         throw new apiError(400, "Channel Id Is Required")
     }
 
-    const channel = await Subscription.findById(channelId)
+    const channel = await Channel.findById(channelId)
 
     if (!channel) {
         throw new apiError(404, "Channel Not Found")
     }
-
+    debugger
+    // Check if the user is already subscribed to the channel
     const existingSubscribe = await Subscription.findOne({
         channel : channelId,
         subscriber : user 
     })
     if (existingSubscribe) {
-        await existingSubscribe.remove()
+        await existingSubscribe.deleteOne();
 
         channel.subscriber = (channel.subscriber || 0) - 1;
         if (channel.subscriber < 0) channel.subscriber = 0;

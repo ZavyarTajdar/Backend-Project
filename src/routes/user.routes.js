@@ -11,7 +11,10 @@ import {
   getCurrentUser,
   updateAccountDetails,
   deleteUserAccount,
-  getWatchHistory
+  getWatchHistory,
+  createChannel,
+  getchannelSubscribers,
+  getChannelSubscribersCount
 } from '../controllers/user.controller.js';
 import { upload } from "../middlewares/multer.middleware.js"
 import { verifyJWT } from '../middlewares/auth.middleware.js';
@@ -92,5 +95,21 @@ router.route("/delete-account")
     deleteUserAccount
 );
 
+router.route("/create-channel")
+  .post(
+    verifyJWT,
+    createChannel
+  )
 
+router.route("/channel-subscribers/:channelId")
+  .get(
+    verifyJWT,
+    getchannelSubscribers
+  )  
+
+router.route("/Count-channel-subscribers/:channelId")
+  .get(
+    verifyJWT,
+    getChannelSubscribersCount
+  )    
 export default router;

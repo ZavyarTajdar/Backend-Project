@@ -1,7 +1,9 @@
 import { asynchandler } from '../utils/asynchandler.js';
 import { apiError } from '../utils/apierror.js';
 import { User } from '../models/user.models.js';
+import { Channel } from '../models/channel.models.js';
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
+import { Subscription } from '../models/subscription.models.js';
 import { apiResponse } from '../utils/apiResponse.js';
 import { deleteOldImage } from '../utils/deleteOldImage.js';
 import jwt from 'jsonwebtoken';
@@ -466,6 +468,64 @@ const getWatchHistory = asynchandler(async (req, res) => {
     )
 })
 
+const createChannel = asynchandler(async (req, res) => {
+    const { name, description } = req.body
+    if (!(name && description)) {
+        throw new apiError(400, "Channel Name And Description Are Required")
+    }
+
+    const existingChannel = await Channel
+    .findOne({ user: req.user._id })
+
+    if (existingChannel) {
+        throw new apiError(409, "User Already Has A Channel")
+    }
+
+    const channel = await Channel.create({
+        user: req.user._id,
+        name,
+        description
+    })
+
+    return res
+        .status(201)
+        .json(
+            new apiResponse(201, channel, "Channel Created Successfully")
+        )
+})
+
+const getchannelSubscribers = asynchandler(async (req, res) => {
+    const {channelId} = req.params
+    if (!channelId) {
+        throw new apiError(400, "Channel Id Is required")
+    }
+
+    const subscribers = await Subscription.find({channel : channelId})
+    .populate('subscriber', 'username email');
+
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, subscribers, "Subscribers Fetched Successfully")
+    )
+})
+
+const getChannelSubscribersCount = asynchandler(async (req, res) => {
+    const { channelId } = req.params;
+
+    if (!channelId) {
+        throw new apiError(400, "Channel Id Is required")
+    }
+
+    const count = await Subscription.countDocuments({ channel: channelId });
+
+    return res
+        .status(200)
+        .json(
+            new apiResponse(200, { count }, "Channel Subscribers Count Fetched Successfully")
+        )
+})
+
 export {
     registerUser,
     loginUser,
@@ -478,5 +538,8 @@ export {
     updateUserCover,
     getUserChannelProfile,
     deleteUserAccount,
-    getWatchHistory
+    getWatchHistory,
+    createChannel,
+    getchannelSubscribers,
+    getChannelSubscribersCount
 };
