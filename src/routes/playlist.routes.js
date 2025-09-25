@@ -13,19 +13,19 @@ import {
 const router = Router();
 router.use(verifyJWT);
 
-router.post("/playlists", createPlaylist);
+router.post("/create-playlists/:videoId", createPlaylist);
 
-router.get("/playlists", getUserPlaylists);
+router.get("/get-playlists", getUserPlaylists);
 
 router.get("/playlists/:playlistId", getPlaylistById);
 
-router.put("/playlists/:playlistId", updatePlaylist);
+router.put("/update-playlists/:playlistId", updatePlaylist);
 
-router.delete("/playlists/:playlistId", deletePlaylist);
+router.delete("/delete-playlists/:playlistId", deletePlaylist);
 
-router.post("/playlists/:playlistId/videos/:videoId", addVideoToPlaylist);
+router.post("/:playlistId/videos/:videoId", addVideoToPlaylist);
 
-router.delete("/playlists/:playlistId/videos/:videoId", removeVideoFromPlaylist);
+router.delete("/:playlistId/videos/:videoId", removeVideoFromPlaylist);
 
 export default router;
 

@@ -4,6 +4,7 @@ import { Video } from '../models/video.models.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { apiResponse } from '../utils/apiResponse.js';
 
+
 const publishVideo = asynchandler(async (req, res) => {
 
     const { title, description, category } = req.body;
@@ -53,7 +54,7 @@ const publishVideo = asynchandler(async (req, res) => {
             PublishingVideo,
             "Video Published Successfully"
         )
-    )
+        )
 
 });
 
@@ -70,24 +71,103 @@ const getVideoById = asynchandler(async (req, res) => {
         throw new apiError(404, "Video Not Found")
     }
 
-    return res
-    .status(200)
-    .json(
-        new apiResponse(200, video, "Video Fetched Successfully!")
-    )
-})
-
-const getAllVideos = asynchandler(async (req, res) => {
-    const videos = await Video.find({ isPublished: true })
-        .populate("creator", "username email")
-        .sort({ createdAt: -1 });
+    const videos = await Video.aggregate([
+        {
+            $match: { isPublished: true }
+        },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "video",
+                as: "likes"
+            }
+        },
+        {
+            $addFields: {
+                likesCount: { $size: "$likes" }
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "creator",
+                foreignField: "_id",
+                as: "creator"
+            }
+        },
+        {
+            $unwind: "$creator"
+        },
+        {
+            $project: {
+                likes: 0,
+                "creator.password": 0,
+                "creator.__v": 0,
+                "creator.refreshToken": 0,   // hide refreshToken
+                "creator.createdAt": 0,      // optional hide
+                "creator.updatedAt": 0,        // optional hide
+                "creator.watchHistory": 0
+            }
+        },
+        { $sort: { createdAt: -1 } }
+    ]);
 
     return res
         .status(200)
         .json(
-            new apiResponse(200, videos, "All Published Videos Fetched Successfully")
-        );
+            new apiResponse(200, videos, "Video Fetched Successfully!")
+        )
+})
+
+const getAllVideos = asynchandler(async (req, res) => {
+    const videos = await Video.aggregate([
+        {
+            $match: { isPublished: true }
+        },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "video",
+                as: "likes"
+            }
+        },
+        {
+            $addFields: {
+                likesCount: { $size: "$likes" }
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "creator",
+                foreignField: "_id",
+                as: "creator"
+            }
+        },
+        {
+            $unwind: "$creator"
+        },
+        {
+            $project: {
+                likes: 0,
+                "creator.password": 0,
+                "creator.__v": 0,
+                "creator.refreshToken": 0,   // hide refreshToken
+                "creator.createdAt": 0,      // optional hide
+                "creator.updatedAt": 0,        // optional hide
+                "creator.watchHistory": 0
+            }
+        },
+        { $sort: { createdAt: -1 } }
+    ]);
+
+    return res
+        .status(200)
+        .json(new apiResponse(200, videos, "All Published Videos Fetched Successfully"));
 });
+
 
 const updateVideo = asynchandler(async (req, res) => {
     const { videoId } = req.params;
@@ -104,8 +184,8 @@ const updateVideo = asynchandler(async (req, res) => {
         .reduce((obj, key) => {
             obj[key] = req.body[key];
             return obj;
-    }, {});
-    
+        }, {});
+
 
     const video = await Video.findByIdAndUpdate(
         videoId,
@@ -130,8 +210,8 @@ const updateVideo = asynchandler(async (req, res) => {
 })
 
 const deleteVideo = asynchandler(async (req, res) => {
-    const {videoId} = req.params
-    
+    const { videoId } = req.params
+
     if (!videoId) {
         throw new apiError(400, "Video ID is required");
     }
@@ -158,11 +238,11 @@ const deleteVideo = asynchandler(async (req, res) => {
         .json(
             new apiResponse(200, video, "Video deleted for user (unpublished) successfully!")
         );
-}) 
+})
 
 const togglePublishStatus = asynchandler(async (req, res) => {
     const { videoId } = req.params
-    
+
     if (!videoId) {
         throw new apiError(404, "ID Is Required")
     }
@@ -177,10 +257,10 @@ const togglePublishStatus = asynchandler(async (req, res) => {
     await video.save()
 
     return res
-    .status(200)
-    .json(
-        new apiResponse(200, video.isPublished, "Video Status Update Successfully")
-    )
+        .status(200)
+        .json(
+            new apiResponse(200, video.isPublished, "Video Status Update Successfully")
+        )
 })
 
 const addView = asynchandler(async (req, res) => {
@@ -195,15 +275,15 @@ const addView = asynchandler(async (req, res) => {
     if (!video) {
         throw new apiError(404, "Video Not Found")
     }
-    
+
     video.views = (video.views || 0) + 1;
     await video.save()
-    
+
     return res
-    .status(200)
-    .json(
-        new apiResponse(200, {views: video.views}, "Video Status Update Successfully")
-    )
+        .status(200)
+        .json(
+            new apiResponse(200, { views: video.views }, "Video Status Update Successfully")
+        )
 })
 
 const getOwnChannelVideos = asynchandler(async (req, res) => {
@@ -212,11 +292,11 @@ const getOwnChannelVideos = asynchandler(async (req, res) => {
     const videos = await Video.find({ creator: userId });
 
     return res
-    .status(200)
-    .json(
-        new apiResponse(200, videos, "Your Own Channel All Videos Found Successfully")
-    )
-}) 
+        .status(200)
+        .json(
+            new apiResponse(200, videos, "Your Own Channel All Videos Found Successfully")
+        )
+})
 
 export {
     publishVideo,

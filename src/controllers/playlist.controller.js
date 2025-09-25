@@ -2,7 +2,6 @@ import { asynchandler } from '../utils/asynchandler.js';
 import { apiError } from '../utils/apierror.js';
 import { Video } from '../models/video.models.js'
 import { Playlist } from '../models/playlist.models.js'
-import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { apiResponse } from '../utils/apiResponse.js';
 import mongoose from 'mongoose';
  
@@ -86,9 +85,9 @@ const getPlaylistById = asynchandler(async (req, res) => {
     const playlist = await Playlist.findById(playlistId)
     .populate({
         path: "videos",
-        select: "title thumbnail videoFile owner createdAt",
+        select: "title thumbnail videoFile creator createdAt",
         populate: {
-            path: "owner",
+            path: "creator",
             select: "username email"
         }
     })
@@ -133,9 +132,9 @@ const addVideoToPlaylist = asynchandler(async (req, res) => {
     const playlistVideo = await Playlist.findById(playlistId)
     .populate({
         path : "videos",
-        select: "title thumbnail videoFile owner createdAt",
+        select: "title thumbnail videoFile creator createdAt",
         populate: {
-            path: "owner",
+            path: "creator",
             select: "username email"
         }
     })
@@ -175,9 +174,9 @@ const removeVideoFromPlaylist = asynchandler(async (req, res) => {
     const playlistVideo = await Playlist.findById(playlistId)
     .populate({
         path : "videos",
-        select: "title thumbnail videoFile owner createdAt",
+        select: "title thumbnail videoFile creator createdAt",
         populate: {
-            path: "owner",
+            path: "creator",
             select: "username email"
         }
     })
@@ -218,8 +217,8 @@ const updatePlaylist = asynchandler(async (req, res) => {
         throw new apiError(400, "Playlist Id Are Required")
     }
 
-    if (!(name && description)) {
-        throw new apiError(400, "Name And Description Both Are Required")
+    if (!(name || description)) {
+        throw new apiError(400, "Name Or Description Are Required")
     }
 
     const UpdatedPlaylist = await Playlist.findByIdAndUpdate(

@@ -8,15 +8,15 @@ import mongoose from 'mongoose';
 
 
 const getVideoComments = asynchandler(async (req, res) => {
-    const {videoId} = req.params
-    const {page = 1, limit = 10} = req.query
+    const { videoId } = req.params
+    const { page = 1, limit = 10 } = req.query
 
     if (!videoId) {
         throw new apiError(400, "Video ID is required");
     }
 
     const video = await Video.findById(videoId)
-  
+
     if (!video) {
         throw new apiError(400, "Video not found");
     }
@@ -24,48 +24,52 @@ const getVideoComments = asynchandler(async (req, res) => {
 
     const comment = await Comment.aggregate([
         {
-            $match:{
-                video : new mongoose.Types.ObjectId(videoId)
+            $match: {
+                video: new mongoose.Types.ObjectId(videoId)
+            }
+        },
+        { $sort: { createdAt: -1 } },
+        { $skip: (page - 1) * limit },
+        { $limit: limit },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "comment",
+                as: "likes"
             }
         },
         {
-            $lookup:{
-                from : "users",
-                localField : "owner",
-                foreignField : "_id",
-                as : "userDetails"
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "userDetails"
             }
         },
         {
-            $unwind : "$userDetails"
+            $unwind: "$userDetails"
         },
         {
-            $project : {
+            $addFields: { likesCount: { $size: "$likes" } }
+        },
+        {
+            $project: {
                 _id: 1,
                 content: 1,
                 createdAt: 1,
-                avatar : "$userDetails.avatar",
-                username : "$userDetails.username",
+                avatar: "$userDetails.avatar",
+                username: "$userDetails.username",
+                likesCount: 1
             }
         },
-        {
-            $sort:{
-                createdAt : -1
-            }
-        },
-        {
-            $skip: (page - 1) * parseInt(limit)
-        },
-        {
-            $limit: parseInt(limit)
-        }
     ])
 
     return res
-    .status(200)
-    .json(
-        new apiResponse(200, comment, "Comments Fetched Successfully")
-    )
+        .status(200)
+        .json(
+            new apiResponse(200, comment, "Comments Fetched Successfully")
+        )
 })
 
 const addComment = asynchandler(async (req, res) => {
@@ -160,9 +164,39 @@ const deleteComment = asynchandler(async (req, res) => {
     );
 });
 
+const getOwnComments = asynchandler(async (req, res) => {
+    const userId = req.user._id;
+
+    // optional pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const comments = await Comment.find({ owner: userId })
+        .populate({
+            path: "video",
+            select: "title videoUrl"
+        })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .sort({ createdAt: -1 }); // optional: latest comments first
+
+    const totalComments = await Comment.countDocuments({ owner: userId });
+
+    return res.status(200).json(
+        new apiResponse(200, {
+            comments,
+            totalComments,
+            page,
+            totalPages: Math.ceil(totalComments / limit)
+        }, "User Comments Fetched Successfully")
+    );
+});
+
+
 export {
-    getVideoComments, 
-    addComment, 
+    getVideoComments,
+    addComment,
     updateComment,
-    deleteComment
+    deleteComment,
+    getOwnComments
 }

@@ -149,47 +149,17 @@ const toggleTweetLike = asynchandler(async (req, res) => {
 })
 
 const getLikedVideos = asynchandler(async (req, res) => {
-    const { videoId } = req.params
+    const userId = req.user._id;
+    const likedVideos = await Like.find({ likedBy: userId })
+        .populate({
+            path: "video",
+            select: "title thumbnail"
+        });
 
-    if (!videoId) {
-        throw new apiError(400, "Video ID is required GLV");
-    }
-
-    const video = await Video.findById(videoId)
-    if (!video) {
-        throw new apiError(404, "Video not found GLV");
-    }
-
-    const like = await Like.aggregate([
-        {
-            $match: { video: new mongoose.Types.ObjectId(videoId) }
-        },
-        {
-            $lookup: {
-                from: "users",
-                localField: "likedBy",
-                foreignField: "_id",
-                as: "userDetails"
-            }
-        },
-        {
-            $unwind: "$userDetails"
-        },
-        {
-            $project: {
-                username: "$userDetails.username",
-                fullname: "$userDetails.fullname",
-                avatar: "$userDetails.avatar"
-            }
-        }
-    ]);
-
-    return res
-        .status(200)
-        .json(
-            new apiResponse(200, { likes: like, likesCount: like.length }, "Liked users fetched successfully")
-        )
-})
+    return res.status(200).json(
+        new apiResponse(200, { likedVideos }, "Liked videos fetched successfully")
+    );
+});
 
 export {
     toggleCommentLike,

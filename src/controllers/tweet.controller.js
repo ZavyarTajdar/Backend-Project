@@ -25,51 +25,56 @@ const createTweet = asynchandler(async (req, res) => {
 })
 
 const getUserTweets = asynchandler(async (req, res) => {
-    const userId = req.user._id
+    const userId = req.user._id;
 
     if (!userId) {
-        throw new apiError(400, "User ID Is Required")
+        throw new apiError(400, "User ID Is Required");
     }
 
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
 
-    const tweet = await Tweet.aggregate([
+    const tweets = await Tweet.aggregate([
+        { $match: { owner: new mongoose.Types.ObjectId(userId) } },
+        { $sort: { createdAt: -1 } },              // sort first
+        { $skip: (page - 1) * limit },             // then skip
+        { $limit: limit },                          // then limit
+        // join likes for count
         {
-            $match:{
-                owner: new mongoose.Types.ObjectId(userId)
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "likes"
             }
         },
         {
-            $lookup:{
-                from : "users",
-                localField : 'owner',
-                foreignField : "_id",
-                as : "userDetails"
-            }
+            $addFields: { likesCount: { $size: "$likes" } }
         },
-         { $unwind: "$userDetails" },
+        { $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "userDetails"
+        }},
+        { $unwind: "$userDetails" },
         {
             $project: {
                 _id: 1,
                 content: 1,
                 createdAt: 1,
                 "userDetails.username": 1,
-                "userDetails.avatar": 1
+                "userDetails.avatar": 1,
+                likesCount: 1
             }
-        },
-        { $sort: { createdAt: -1 } },
-        { $skip: (page - 1) * limit },
-        { 
-            $limit: limit 
         }
     ]);
 
-    return res
-    .status(200)
-    .json(new apiResponse(200, tweet, "User tweets fetched successfully"));
-     
-})
+    return res.status(200).json(
+        new apiResponse(200, tweets, "User tweets fetched successfully")
+    );
+});
+
 
 const updateTweet = asynchandler(async (req, res) => {
     const { tweetId } = req.params

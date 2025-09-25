@@ -4,7 +4,8 @@ import {
   getVideoComments,
   addComment,
   updateComment,
-  deleteComment
+  deleteComment,
+  getOwnComments
 } from '../controllers/comment.controller.js'
 
 const router = Router();
@@ -15,6 +16,8 @@ router.route("/:videoId/comments").post(addComment);
 router.route("/:videoId/comments").get(getVideoComments);
 
 router.route("/:commentId/comments").put(updateComment);
+
+router.route("/getowncomments").get(getOwnComments);
 
 router.route("/:commentId/comments").delete(deleteComment);
 
