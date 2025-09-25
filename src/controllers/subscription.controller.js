@@ -59,7 +59,7 @@ const getUserChannelSubscribers = asynchandler(async (req, res) => {
         throw new apiError(400, "Channel Id Is required")
     }
 
-    const channel = await Subscription.findById(channelId)
+    const channel = await Channel.findById(channelId)
 
     if (!channel) {
         throw new apiError(404, "Channel not Found")
@@ -76,13 +76,13 @@ const getUserChannelSubscribers = asynchandler(async (req, res) => {
 })
 
 const getSubscribedChannels = asynchandler(async (req, res) => {
-    const { subscriberId } = req.params
+    const userId = req.user._id
 
-    if (!subscriberId) {
+    if (!userId) {
         throw new apiError(400, "Subscriber Id Is required")
     }
 
-    const subscribers = await Subscription.find({subscriber : subscriberId})
+    const subscribers = await Subscription.find({subscriber : userId})
     .populate('channel', 'name');
 
     const channels = subscribers.map(sub => sub.channel);
