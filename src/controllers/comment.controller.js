@@ -145,10 +145,10 @@ const deleteComment = asynchandler(async (req, res) => {
         throw new apiError(403, "You can only delete your own comment");
     }
 
-    await comment.deleteOne();
+    const DelComment = await comment.deleteOne();
 
     return res.status(200).json(
-        new apiResponse(200, null, "Comment deleted successfully")
+        new apiResponse(200, DelComment, "Comment deleted successfully")
     );
 });
 
